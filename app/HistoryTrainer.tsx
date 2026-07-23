@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type StructureItem = { label: string; content: string };
 type ScoringPoint = { label: string; points: number; answer_hint: string };
@@ -63,6 +63,81 @@ function priorityLabel(level: number) {
   if (level >= 4) return "高频重点";
   if (level >= 3) return "常规掌握";
   return "拓展识记";
+}
+
+function ClozeDefinition({
+  text,
+  keywords,
+}: {
+  text: string;
+  keywords: string[];
+}) {
+  const [revealed, setRevealed] = useState<number[]>([]);
+  const timers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const segments = useMemo(() => {
+    const uniqueKeywords = Array.from(
+      new Set(keywords.filter((keyword) => keyword && text.includes(keyword))),
+    ).sort((a, b) => b.length - a.length);
+    if (!uniqueKeywords.length) {
+      return [{ text, maskIndex: null }];
+    }
+    const escaped = uniqueKeywords.map((keyword) =>
+      keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+    );
+    const keywordSet = new Set(uniqueKeywords);
+    let occurrence = 0;
+    return text
+      .split(new RegExp(`(${escaped.join("|")})`, "g"))
+      .map((part) => ({
+        text: part,
+        maskIndex: keywordSet.has(part) ? occurrence++ : null,
+      }));
+  }, [keywords, text]);
+
+  useEffect(
+    () => () => {
+      Object.values(timers.current).forEach(clearTimeout);
+    },
+    [],
+  );
+
+  function revealMask(index: number) {
+    setRevealed((current) =>
+      current.includes(index) ? current : [...current, index],
+    );
+    clearTimeout(timers.current[index]);
+    timers.current[index] = setTimeout(() => {
+      setRevealed((current) => current.filter((item) => item !== index));
+      delete timers.current[index];
+    }, 3000);
+  }
+
+  return (
+    <p className="cloze-text">
+      {segments.map((segment, partIndex) => {
+        if (segment.maskIndex === null) {
+          return <span key={`text-${partIndex}`}>{segment.text}</span>;
+        }
+        const currentMask = segment.maskIndex;
+        const isRevealed = revealed.includes(currentMask);
+        return (
+          <button
+            type="button"
+            key={`mask-${partIndex}`}
+            className={isRevealed ? "cloze-mask revealed" : "cloze-mask"}
+            aria-label={
+              isRevealed
+                ? `${segment.text}，3秒后重新遮挡`
+                : "关键词已遮挡，点击显示3秒"
+            }
+            onClick={() => revealMask(currentMask)}
+          >
+            <span aria-hidden="true">{segment.text}</span>
+          </button>
+        );
+      })}
+    </p>
+  );
 }
 
 export function HistoryTrainer() {
@@ -154,9 +229,39 @@ export function HistoryTrainer() {
           term.chapter.toLowerCase().includes(query) ||
           term.keywords.some((keyword) => keyword.toLowerCase().includes(query)),
       )
-      .sort((a, b) => b.review_level - a.review_level)
       .slice(0, 100);
   }, [search, section, terms]);
+
+  const recommendationAnchor = useMemo(() => {
+    const studiedIds = Object.keys(progress);
+    for (let index = studiedIds.length - 1; index >= 0; index -= 1) {
+      const term = terms.find((item) => item.id === studiedIds[index]);
+      if (term) return term;
+    }
+    return null;
+  }, [progress, terms]);
+
+  const relatedTerms = useMemo(() => {
+    if (!recommendationAnchor) return newTerms.slice(0, 3);
+
+    const sameChapter = terms.filter(
+      (term) =>
+        term.id !== recommendationAnchor.id &&
+        term.chapter === recommendationAnchor.chapter,
+    );
+    const sameType = terms.filter(
+      (term) =>
+        term.id !== recommendationAnchor.id &&
+        term.chapter !== recommendationAnchor.chapter &&
+        term.term_type === recommendationAnchor.term_type,
+    );
+    return [...sameChapter, ...sameType]
+      .filter(
+        (term, index, items) =>
+          items.findIndex((item) => item.id === term.id) === index,
+      )
+      .slice(0, 3);
+  }, [newTerms, recommendationAnchor, terms]);
 
   const score = useMemo(() => {
     if (!selected) return 0;
@@ -187,9 +292,7 @@ export function HistoryTrainer() {
 
   function startRecommended() {
     const candidates = dueTerms.length ? dueTerms : newTerms;
-    const term =
-      [...candidates].sort((a, b) => b.review_level - a.review_level)[0] ??
-      terms[0];
+    const term = candidates[0] ?? terms[0];
     if (term) openTraining(term);
   }
 
@@ -306,18 +409,18 @@ export function HistoryTrainer() {
 
           <div className="section-heading">
             <div>
-              <p className="small-label">推荐学习</p>
-              <h3>{dueTerms.length ? "从遗忘边缘捞回来" : "从核心考点开始"}</h3>
+              <p className="small-label">关联知识点</p>
+              <h3>
+                {recommendationAnchor
+                  ? `围绕“${recommendationAnchor.term}”串联`
+                  : "按目录从头建立知识网"}
+              </h3>
             </div>
             <button onClick={() => setView("library")}>查看全部</button>
           </div>
 
           <div className="recommend-list">
-            {(dueTerms.length ? dueTerms : newTerms)
-              .slice()
-              .sort((a, b) => b.review_level - a.review_level)
-              .slice(0, 3)
-              .map((term) => (
+            {relatedTerms.map((term) => (
                 <button
                   className="term-row"
                   key={term.id}
@@ -376,9 +479,9 @@ export function HistoryTrainer() {
 
           {phase === 0 && (
             <>
-              <section className="content-card understanding">
-                <p className="card-kicker">一句话抓住本质</p>
-                <p className="lead-sentence">{selected.一句话理解}</p>
+              <section className="content-card definition-card">
+                <p className="card-kicker">完整释义原文</p>
+                <p className="definition-text">{selected.definition}</p>
               </section>
 
               <section className="content-card mindmap-card">
@@ -413,10 +516,10 @@ export function HistoryTrainer() {
                 </div>
               </section>
 
-              <details className="content-card definition-card">
-                <summary>查看完整释义原文</summary>
-                <p>{selected.definition}</p>
-              </details>
+              <section className="content-card understanding">
+                <p className="card-kicker">一句话抓住本质</p>
+                <p className="lead-sentence">{selected.一句话理解}</p>
+              </section>
             </>
           )}
 
@@ -440,6 +543,20 @@ export function HistoryTrainer() {
               <section className="content-card memory-line">
                 <p className="card-kicker">记忆串联</p>
                 <p>{selected.memory_chain}</p>
+              </section>
+              <section className="content-card cloze-card">
+                <div className="card-title-line">
+                  <div>
+                    <p className="card-kicker">原文关键词遮挡</p>
+                    <h3>沿着骨架，把关键词填回来</h3>
+                  </div>
+                  <span>点击显示 3 秒</span>
+                </div>
+                <ClozeDefinition
+                  key={selected.id}
+                  text={selected.definition}
+                  keywords={selected.keywords}
+                />
               </section>
               <div className="tip-box">
                 <span>诀</span>
