@@ -65,6 +65,145 @@ function priorityLabel(level: number) {
   return "拓展识记";
 }
 
+type ClozeSegment = { text: string; maskIndex: number | null };
+
+const CLOZE_STOP_WORDS = new Set([
+  "一个",
+  "一些",
+  "一种",
+  "主要",
+  "进行",
+  "通过",
+  "由于",
+  "为了",
+  "成为",
+  "开始",
+  "后来",
+  "时期",
+  "事件",
+  "方面",
+  "一定",
+  "重要",
+  "具有",
+  "产生",
+  "形成",
+  "发展",
+  "社会",
+  "国家",
+  "历史",
+  "文化",
+  "统治",
+  "发现",
+  "认为",
+  "出现",
+  "实行",
+  "建立",
+]);
+
+function segmentChineseWords(text: string) {
+  if (typeof Intl.Segmenter === "function") {
+    const segmenter = new Intl.Segmenter("zh-CN", { granularity: "word" });
+    return Array.from(segmenter.segment(text))
+      .filter((item) => item.isWordLike)
+      .map((item) => item.segment.trim())
+      .filter(Boolean);
+  }
+
+  return text.match(/[A-Za-z]+|\d+(?:—\d+)?年?|[\u3400-\u9fff]{2,6}/g) ?? [];
+}
+
+function chooseClauseKeyword(clause: string, keywords: string[]) {
+  const compactClause = clause.replace(/\s+/g, "");
+  if (compactClause.length < 4) return "";
+
+  const cleanKeywords = keywords
+    .map((keyword) => keyword.replace(/[…·]+$/g, "").trim())
+    .filter(Boolean);
+  const keywordWords = new Set(
+    cleanKeywords.flatMap((keyword) => segmentChineseWords(keyword)),
+  );
+  const candidates = new Set<string>();
+
+  cleanKeywords.forEach((keyword) => {
+    if (keyword.length >= 2 && keyword.length <= 8 && clause.includes(keyword)) {
+      candidates.add(keyword);
+    }
+  });
+  segmentChineseWords(clause).forEach((word) => candidates.add(word));
+
+  const dates =
+    clause.match(
+      /(?:公元前|公元)?\d{2,4}(?:—(?:公元前|公元)?\d{2,4})?年|\d+余?年/g,
+    ) ?? [];
+  dates.forEach((date) => candidates.add(date));
+
+  const titles = clause.match(/《[^》]{2,8}》/g) ?? [];
+  titles.forEach((title) => candidates.add(title));
+
+  return Array.from(candidates)
+    .filter((candidate) => {
+      const length = candidate.replace(/[《》“”]/g, "").length;
+      if (length < 2 || length > 8 || CLOZE_STOP_WORDS.has(candidate)) return false;
+      if (!clause.includes(candidate)) return false;
+      return candidate.length / compactClause.length <= 0.55;
+    })
+    .map((candidate) => {
+      let score = 0;
+      if (
+        cleanKeywords.some(
+          (keyword) =>
+            keyword.includes(candidate) ||
+            (candidate.length >= 4 && candidate.includes(keyword)),
+        )
+      ) {
+        score += 12;
+      }
+      if (keywordWords.has(candidate)) score += 6;
+      if (/[0-9]/.test(candidate)) score += 8;
+      if (/^《.*》$/.test(candidate)) score += 7;
+      if (/^[\u3400-\u9fff]{2,6}$/.test(candidate)) score += 3;
+      if (candidate.length >= 3 && candidate.length <= 6) score += 2;
+      score += Math.min(clause.indexOf(candidate), 12) / 20;
+      return { candidate, score };
+    })
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        b.candidate.length - a.candidate.length ||
+        clause.indexOf(a.candidate) - clause.indexOf(b.candidate),
+    )[0]?.candidate ?? "";
+}
+
+function buildClozeSegments(text: string, keywords: string[]): ClozeSegment[] {
+  const parts = text.split(/([，,。！？；;：:\n])/);
+  const segments: ClozeSegment[] = [];
+  let maskIndex = 0;
+
+  parts.forEach((part) => {
+    if (!part) return;
+    if (/^[，,。！？；;：:\n]$/.test(part)) {
+      segments.push({ text: part, maskIndex: null });
+      return;
+    }
+
+    const keyword = chooseClauseKeyword(part, keywords);
+    const keywordIndex = keyword ? part.indexOf(keyword) : -1;
+    if (keywordIndex < 0) {
+      segments.push({ text: part, maskIndex: null });
+      return;
+    }
+
+    const before = part.slice(0, keywordIndex);
+    const after = part.slice(keywordIndex + keyword.length);
+    if (before) segments.push({ text: before, maskIndex: null });
+    segments.push({ text: keyword, maskIndex });
+    if (after) segments.push({ text: after, maskIndex: null });
+    maskIndex += 1;
+  });
+
+  return segments;
+}
+
 function ClozeDefinition({
   text,
   keywords,
@@ -74,25 +213,10 @@ function ClozeDefinition({
 }) {
   const [revealed, setRevealed] = useState<number[]>([]);
   const timers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
-  const segments = useMemo(() => {
-    const uniqueKeywords = Array.from(
-      new Set(keywords.filter((keyword) => keyword && text.includes(keyword))),
-    ).sort((a, b) => b.length - a.length);
-    if (!uniqueKeywords.length) {
-      return [{ text, maskIndex: null }];
-    }
-    const escaped = uniqueKeywords.map((keyword) =>
-      keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-    );
-    const keywordSet = new Set(uniqueKeywords);
-    let occurrence = 0;
-    return text
-      .split(new RegExp(`(${escaped.join("|")})`, "g"))
-      .map((part) => ({
-        text: part,
-        maskIndex: keywordSet.has(part) ? occurrence++ : null,
-      }));
-  }, [keywords, text]);
+  const segments = useMemo(
+    () => buildClozeSegments(text, keywords),
+    [keywords, text],
+  );
 
   useEffect(
     () => () => {
@@ -158,6 +282,7 @@ export function HistoryTrainer() {
   const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [section, setSection] = useState("全部");
+  const [visibleLimit, setVisibleLimit] = useState(100);
   const [expandedBranch, setExpandedBranch] = useState<number | null>(0);
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
   const [marks, setMarks] = useState<Record<number, RecallMark>>({});
@@ -218,7 +343,7 @@ export function HistoryTrainer() {
     [progress],
   );
 
-  const filteredTerms = useMemo(() => {
+  const matchingTerms = useMemo(() => {
     const query = search.trim().toLowerCase();
     return terms
       .filter((term) => section === "全部" || term.section === section)
@@ -228,9 +353,13 @@ export function HistoryTrainer() {
           term.term.toLowerCase().includes(query) ||
           term.chapter.toLowerCase().includes(query) ||
           term.keywords.some((keyword) => keyword.toLowerCase().includes(query)),
-      )
-      .slice(0, 100);
+      );
   }, [search, section, terms]);
+
+  const filteredTerms = useMemo(
+    () => matchingTerms.slice(0, visibleLimit),
+    [matchingTerms, visibleLimit],
+  );
 
   const recommendationAnchor = useMemo(() => {
     const studiedIds = Object.keys(progress);
@@ -704,7 +833,7 @@ export function HistoryTrainer() {
       {view === "library" && (
         <section className="page">
           <div className="page-heading">
-            <p className="eyebrow">947 个目录名词</p>
+            <p className="eyebrow">{terms.length} 个目录名词</p>
             <h2>名词库</h2>
             <p>只收录目录中的考点，可按篇章或关键词快速定位。</p>
           </div>
@@ -712,7 +841,10 @@ export function HistoryTrainer() {
             <span>⌕</span>
             <input
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setVisibleLimit(100);
+              }}
               placeholder="搜索名词、章节或关键词"
             />
           </label>
@@ -721,13 +853,18 @@ export function HistoryTrainer() {
               <button
                 key={item}
                 className={section === item ? "active" : ""}
-                onClick={() => setSection(item)}
+                onClick={() => {
+                  setSection(item);
+                  setVisibleLimit(100);
+                }}
               >
                 {item === "全部" ? "全部" : item.replace("中国", "")}
               </button>
             ))}
           </div>
-          <p className="result-count">当前显示 {filteredTerms.length} 个</p>
+          <p className="result-count">
+            已按目录顺序显示 {filteredTerms.length} / {matchingTerms.length} 个
+          </p>
           <div className="library-list">
             {filteredTerms.map((term) => {
               const item = progress[term.id];
@@ -746,6 +883,16 @@ export function HistoryTrainer() {
               );
             })}
           </div>
+          {filteredTerms.length < matchingTerms.length && (
+            <button
+              type="button"
+              className="load-more-button"
+              onClick={() => setVisibleLimit((current) => current + 100)}
+            >
+              再加载 {Math.min(100, matchingTerms.length - filteredTerms.length)} 个
+              <span>剩余 {matchingTerms.length - filteredTerms.length} 个</span>
+            </button>
+          )}
         </section>
       )}
 

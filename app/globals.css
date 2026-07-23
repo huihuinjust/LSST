@@ -1148,6 +1148,32 @@ button {
   font-size: 10px;
 }
 
+.load-more-button {
+  width: 100%;
+  margin: 14px 0 4px;
+  padding: 13px 18px;
+  border: 1px solid rgba(50, 90, 112, 0.2);
+  border-radius: 16px;
+  color: var(--blue);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 8px 24px rgba(36, 48, 55, 0.06);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.load-more-button span {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink-soft);
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.load-more-button:active {
+  transform: translateY(1px);
+}
+
 .library-list > button {
   width: 100%;
   display: grid;
