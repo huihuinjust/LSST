@@ -535,16 +535,17 @@ button {
 
 .term-note-row {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: center;
   gap: 7px;
   margin: 13px 0 0;
   color: var(--ink-soft);
   font-size: 12px;
   line-height: 1.7;
+  text-align: left;
 }
 
-.term-note-row > span {
+.term-note-label {
   flex: 0 0 auto;
   padding: 2px 6px;
   border-radius: 8px;
@@ -552,6 +553,10 @@ button {
   background: rgba(166, 65, 53, 0.08);
   font-size: 10px;
   font-weight: 700;
+}
+
+.term-note-content {
+  padding-top: 1px;
 }
 
 .content-card {

@@ -12,6 +12,7 @@ type Term = {
   chapter: string;
   term_type: string;
   definition: string;
+  exam_note?: string | null;
   一句话理解: string;
   structure: StructureItem[];
   keywords: string[];
@@ -63,22 +64,6 @@ function priorityLabel(level: number) {
   if (level >= 4) return "高频重点";
   if (level >= 3) return "常规掌握";
   return "拓展识记";
-}
-
-function extractParentheticalNotes(term: Term) {
-  const notes: string[] = [];
-  const sources = [term.catalog_term, term.definition];
-
-  sources.forEach((source) => {
-    const matches = source.matchAll(/（([^（）]{1,60})）|\(([^()]{1,60})\)/g);
-    for (const match of matches) {
-      const note = (match[1] ?? match[2] ?? "").trim();
-      if (note && !notes.includes(note)) notes.push(note);
-      if (notes.length >= 2) return;
-    }
-  });
-
-  return notes.slice(0, 2);
 }
 
 type ClozeSegment = { text: string; maskIndex: number | null };
@@ -331,10 +316,6 @@ export function HistoryTrainer() {
   const selected = useMemo(
     () => terms.find((term) => term.id === selectedId) ?? terms[0],
     [selectedId, terms],
-  );
-  const selectedNotes = useMemo(
-    () => (selected ? extractParentheticalNotes(selected) : []),
-    [selected],
   );
 
   const dueTerms = useMemo(
@@ -626,11 +607,11 @@ export function HistoryTrainer() {
                 <span key={keyword}>{keyword}</span>
               ))}
             </div>
-            {selectedNotes.length > 0 && (
-              <p className="term-note-row">
-                <span>备注</span>
-                {selectedNotes.join("；")}
-              </p>
+            {selected.exam_note && (
+              <div className="term-note-row">
+                <span className="term-note-label">真题出处</span>
+                <span className="term-note-content">{selected.exam_note}</span>
+              </div>
             )}
           </article>
 
