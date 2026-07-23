@@ -503,10 +503,10 @@ button {
   box-shadow: var(--shadow);
 }
 
-.term-title-card > p {
+.term-title-card > .term-context {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .term-title-card h2 {
@@ -525,11 +525,33 @@ button {
 }
 
 .keyword-row span {
-  padding: 5px 8px;
+  padding: 6px 10px;
   border-radius: 20px;
   color: var(--blue);
   background: rgba(50, 90, 112, 0.07);
-  font-size: 9px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.term-note-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 7px;
+  margin: 13px 0 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.term-note-row > span {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 8px;
+  color: var(--red-deep);
+  background: rgba(166, 65, 53, 0.08);
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .content-card {
@@ -586,7 +608,7 @@ button {
   color: var(--white);
   background: var(--red);
   font-family: "STKaiti", "KaiTi", serif;
-  font-size: 19px;
+  font-size: 21px;
 }
 
 .mindmap-trunk {
@@ -645,7 +667,7 @@ button {
   border-radius: 8px;
   color: var(--blue);
   background: rgba(50, 90, 112, 0.1);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -655,13 +677,13 @@ button {
 }
 
 .branch strong {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .branch small {
   color: var(--ink-soft);
-  font-size: 11px;
-  line-height: 1.7;
+  font-size: 14px;
+  line-height: 1.8;
 }
 
 .branch b {
@@ -681,8 +703,8 @@ button {
 .definition-card .definition-text {
   margin: 10px 0 0;
   color: #45565f;
-  font-size: 13px;
-  line-height: 1.9;
+  font-size: 16px;
+  line-height: 2;
 }
 
 .chain-flow {
@@ -723,14 +745,14 @@ button {
 }
 
 .chain-step strong {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .chain-step p {
   margin: 5px 0 0;
   color: var(--ink-soft);
-  font-size: 12px;
-  line-height: 1.7;
+  font-size: 15px;
+  line-height: 1.85;
 }
 
 .memory-line p:last-child {
@@ -749,8 +771,8 @@ button {
 .cloze-text {
   margin: 17px 0 0;
   color: #45565f;
-  font-size: 13px;
-  line-height: 2.15;
+  font-size: 16px;
+  line-height: 2.05;
 }
 
 .cloze-mask {

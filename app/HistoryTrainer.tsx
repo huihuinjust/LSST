@@ -65,6 +65,22 @@ function priorityLabel(level: number) {
   return "拓展识记";
 }
 
+function extractParentheticalNotes(term: Term) {
+  const notes: string[] = [];
+  const sources = [term.catalog_term, term.definition];
+
+  sources.forEach((source) => {
+    const matches = source.matchAll(/（([^（）]{1,60})）|\(([^()]{1,60})\)/g);
+    for (const match of matches) {
+      const note = (match[1] ?? match[2] ?? "").trim();
+      if (note && !notes.includes(note)) notes.push(note);
+      if (notes.length >= 2) return;
+    }
+  });
+
+  return notes.slice(0, 2);
+}
+
 type ClozeSegment = { text: string; maskIndex: number | null };
 
 const CLOZE_STOP_WORDS = new Set([
@@ -315,6 +331,10 @@ export function HistoryTrainer() {
   const selected = useMemo(
     () => terms.find((term) => term.id === selectedId) ?? terms[0],
     [selectedId, terms],
+  );
+  const selectedNotes = useMemo(
+    () => (selected ? extractParentheticalNotes(selected) : []),
+    [selected],
   );
 
   const dueTerms = useMemo(
@@ -597,13 +617,21 @@ export function HistoryTrainer() {
           </div>
 
           <article className="term-title-card">
-            <p>{selected.section} · {selected.chapter}</p>
+            <p className="term-context">
+              {selected.section} · {selected.chapter}
+            </p>
             <h2>{selected.term}</h2>
             <div className="keyword-row">
               {selected.keywords.slice(0, 4).map((keyword) => (
                 <span key={keyword}>{keyword}</span>
               ))}
             </div>
+            {selectedNotes.length > 0 && (
+              <p className="term-note-row">
+                <span>备注</span>
+                {selectedNotes.join("；")}
+              </p>
+            )}
           </article>
 
           {phase === 0 && (
