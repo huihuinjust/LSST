@@ -1,0 +1,10 @@
+{
+  "name": "历史记忆室",
+  "short_name": "历史记忆",
+  "description": "南京师范大学 841 中国历史名词主动记忆训练",
+  "lang": "zh-CN",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f1e7",
+  "theme_color": "#f5f0e6"
+}
