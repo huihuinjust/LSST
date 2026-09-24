@@ -303,6 +303,8 @@ export function HistoryTrainer() {
   const [visibleLimit, setVisibleLimit] = useState(100);
   const [randomPartIndex, setRandomPartIndex] = useState(0);
   const [randomReturn, setRandomReturn] = useState(false);
+  const [trainingReturnView, setTrainingReturnView] = useState<Exclude<View, "train">>("home");
+  const [trainingReturnScrollY, setTrainingReturnScrollY] = useState(0);
   const [expandedBranch, setExpandedBranch] = useState<number | null>(0);
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
   const [marks, setMarks] = useState<Record<number, RecallMark>>({});
@@ -433,6 +435,8 @@ export function HistoryTrainer() {
   }
 
   function openTraining(term: Term, returnToRandom = false) {
+    setTrainingReturnView(returnToRandom ? "random" : view === "library" ? "library" : "home");
+    setTrainingReturnScrollY(window.scrollY);
     setSelectedId(term.id);
     setPhase(0);
     setExpandedBranch(0);
@@ -442,6 +446,13 @@ export function HistoryTrainer() {
     setRandomReturn(returnToRandom);
     setView("train");
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function leaveTraining() {
+    const destination = trainingReturnView;
+    const scrollY = trainingReturnScrollY;
+    setView(destination);
+    window.setTimeout(() => window.scrollTo({ top: scrollY, behavior: "auto" }), 0);
   }
 
   function startRandomRecitation(excludeId?: string) {
@@ -618,7 +629,7 @@ export function HistoryTrainer() {
           <div className="training-head">
             <button
               className="round-button"
-              onClick={() => setView(randomReturn ? "random" : "home")}
+              onClick={leaveTraining}
               aria-label="退出训练"
             >
               ←
@@ -908,10 +919,12 @@ export function HistoryTrainer() {
               <span>主动回忆</span>
             </div>
             <p className="random-recall-text">
-              {randomParts[randomPartIndex] ?? selected.definition}
+              {randomParts.slice(0, randomPartIndex + 1).map((part, index) => (
+                <span key={`${selected.id}-recall-part-${index}`}>{part}</span>
+              ))}
             </p>
             <p className="random-recall-tip">
-              先在心里复述这一句，再决定是否打开下一句。
+              先复述目前显示的内容，再决定是否打开下一句。
             </p>
           </section>
 
