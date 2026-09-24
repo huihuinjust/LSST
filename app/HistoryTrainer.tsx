@@ -931,9 +931,10 @@ export function HistoryTrainer() {
           <div className="random-actions">
             <button
               className="secondary-button"
-              onClick={() => openTraining(selected, true)}
+              disabled={randomPartIndex === 0}
+              onClick={() => setRandomPartIndex((current) => Math.max(0, current - 1))}
             >
-              助记
+              上一句
             </button>
             <button
               className="primary-button"
@@ -946,6 +947,12 @@ export function HistoryTrainer() {
               }}
             >
               {randomPartIndex < randomParts.length - 1 ? "下一句" : "下一个随机名词"}
+            </button>
+            <button
+              className="secondary-button random-assist-button"
+              onClick={() => openTraining(selected, true)}
+            >
+              助记
             </button>
           </div>
         </section>

@@ -1257,11 +1257,26 @@ button {
 }
 
 .random-recall-text {
+  box-sizing: border-box;
+  height: 240px;
+  overflow-y: auto;
   margin: 22px 0 0;
+  padding: 0 10px 8px 0;
   color: var(--ink);
   font-family: "Songti SC", "STSong", serif;
   font-size: 21px;
   line-height: 1.9;
+  scrollbar-color: rgba(166, 65, 53, 0.5) transparent;
+  scrollbar-width: thin;
+}
+
+.random-recall-text::-webkit-scrollbar {
+  width: 5px;
+}
+
+.random-recall-text::-webkit-scrollbar-thumb {
+  border-radius: 8px;
+  background: rgba(166, 65, 53, 0.5);
 }
 
 .random-recall-tip {
@@ -1274,13 +1289,23 @@ button {
 }
 
 .random-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 9px;
   margin-top: 15px;
 }
 
 .random-actions button {
-  flex: 1;
+  min-width: 0;
+}
+
+.random-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.random-assist-button {
+  grid-column: 1 / -1;
 }
 
 .search-box {
