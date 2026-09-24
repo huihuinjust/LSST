@@ -1124,6 +1124,165 @@ button {
   line-height: 1.7;
 }
 
+.random-launch {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 11px;
+  padding: 13px 15px;
+  border: 1px solid rgba(166, 65, 53, 0.2);
+  border-radius: 16px;
+  color: var(--ink);
+  text-align: left;
+  background: linear-gradient(135deg, rgba(255, 249, 237, 0.95), rgba(255, 243, 230, 0.72));
+  box-shadow: 0 8px 24px rgba(166, 65, 53, 0.07);
+}
+
+.random-launch:active {
+  transform: translateY(1px);
+}
+
+.random-launch-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  color: white;
+  background: var(--red);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.random-launch span:nth-child(2) {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.random-launch strong {
+  font-size: 14px;
+}
+
+.random-launch small {
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.random-launch > b {
+  color: var(--red);
+  font-size: 11px;
+}
+
+.random-page {
+  padding-bottom: calc(35px + env(safe-area-inset-bottom));
+}
+
+.random-term-card,
+.random-recall-card {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(255, 253, 248, 0.8);
+  box-shadow: var(--shadow);
+}
+
+.random-term-card {
+  padding: 19px 18px 17px;
+  text-align: center;
+}
+
+.random-term-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ink-soft);
+  font-size: 10px;
+  text-align: left;
+}
+
+.random-term-meta b {
+  flex: 0 0 auto;
+  color: var(--red);
+  font-size: 10px;
+}
+
+.random-term-card h3 {
+  margin: 14px 0 17px;
+  color: var(--red);
+  font-family: "STKaiti", "KaiTi", serif;
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.random-progress {
+  display: flex;
+  gap: 5px;
+}
+
+.random-progress span {
+  height: 4px;
+  flex: 1;
+  border-radius: 8px;
+  background: #e3ddd3;
+}
+
+.random-progress span.active {
+  background: var(--red);
+}
+
+.random-recall-card {
+  margin-top: 14px;
+  padding: 19px;
+}
+
+.random-recall-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.random-recall-head span:last-child {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.random-recall-text {
+  margin: 22px 0 0;
+  color: var(--ink);
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 21px;
+  line-height: 1.9;
+}
+
+.random-recall-tip {
+  margin: 19px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.random-actions {
+  display: flex;
+  gap: 9px;
+  margin-top: 15px;
+}
+
+.random-actions button {
+  flex: 1;
+}
+
 .search-box {
   display: flex;
   align-items: center;

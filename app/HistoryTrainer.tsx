@@ -34,7 +34,7 @@ type Progress = {
   independent: boolean;
 };
 type ProgressMap = Record<string, Progress>;
-type View = "home" | "train" | "library" | "progress";
+type View = "home" | "train" | "library" | "random" | "progress";
 type RecallMark = "independent" | "hinted" | "missed";
 
 const STORAGE_KEY = "lsst-history-progress-v1";
@@ -205,6 +205,23 @@ function buildClozeSegments(text: string, keywords: string[]): ClozeSegment[] {
   return segments;
 }
 
+function buildRecallParts(text: string) {
+  const normalized = text.replace(/\s+/g, "").trim();
+  if (!normalized) return [];
+
+  const sentenceParts = normalized
+    .split(/(?<=[。！？；;])/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (sentenceParts.length > 1) return sentenceParts;
+
+  return normalized
+    .split(/(?<=[，,])/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 function ClozeDefinition({
   text,
   keywords,
@@ -284,6 +301,8 @@ export function HistoryTrainer() {
   const [search, setSearch] = useState("");
   const [section, setSection] = useState("全部");
   const [visibleLimit, setVisibleLimit] = useState(100);
+  const [randomPartIndex, setRandomPartIndex] = useState(0);
+  const [randomReturn, setRandomReturn] = useState(false);
   const [expandedBranch, setExpandedBranch] = useState<number | null>(0);
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
   const [marks, setMarks] = useState<Record<number, RecallMark>>({});
@@ -316,6 +335,10 @@ export function HistoryTrainer() {
   const selected = useMemo(
     () => terms.find((term) => term.id === selectedId) ?? terms[0],
     [selectedId, terms],
+  );
+  const randomParts = useMemo(
+    () => (selected ? buildRecallParts(selected.definition) : []),
+    [selected],
   );
 
   const dueTerms = useMemo(
@@ -409,14 +432,26 @@ export function HistoryTrainer() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }
 
-  function openTraining(term: Term) {
+  function openTraining(term: Term, returnToRandom = false) {
     setSelectedId(term.id);
     setPhase(0);
     setExpandedBranch(0);
     setRevealedHints([]);
     setMarks({});
     setResultSaved(false);
+    setRandomReturn(returnToRandom);
     setView("train");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function startRandomRecitation(excludeId?: string) {
+    const pool = terms.filter((term) => term.id !== excludeId);
+    const next = pool[Math.floor(Math.random() * pool.length)] ?? terms[0];
+    if (!next) return;
+    setSelectedId(next.id);
+    setRandomPartIndex(0);
+    setRandomReturn(false);
+    setView("random");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -581,7 +616,11 @@ export function HistoryTrainer() {
       {view === "train" && selected && (
         <section className="page training-page">
           <div className="training-head">
-            <button className="round-button" onClick={() => setView("home")} aria-label="退出训练">
+            <button
+              className="round-button"
+              onClick={() => setView(randomReturn ? "random" : "home")}
+              aria-label="退出训练"
+            >
               ←
             </button>
             <div>
@@ -816,10 +855,14 @@ export function HistoryTrainer() {
                 className="secondary-button"
                 onClick={() => {
                   completeTraining();
-                  chooseNext();
+                  if (randomReturn) {
+                    startRandomRecitation(selected.id);
+                  } else {
+                    chooseNext();
+                  }
                 }}
               >
-                保存后继续下一个
+                {randomReturn ? "保存后下一个随机名词" : "保存后继续下一个"}
               </button>
             </section>
           )}
@@ -839,6 +882,62 @@ export function HistoryTrainer() {
         </section>
       )}
 
+      {view === "random" && selected && (
+        <section className="page random-page">
+          <div className="page-heading">
+            <p className="eyebrow">随机主动回忆</p>
+            <h2>不按顺序，检验能否提取</h2>
+            <p>每次只看一个分句，背好后再打开下一个。</p>
+          </div>
+          <article className="random-term-card">
+            <div className="random-term-meta">
+              <span>{selected.section} · {selected.chapter}</span>
+              <b>{priorityLabel(selected.review_level)}</b>
+            </div>
+            <h3>{selected.term}</h3>
+            <div className="random-progress" aria-label={`第 ${randomPartIndex + 1} 句，共 ${randomParts.length} 句`}>
+              {randomParts.map((_, index) => (
+                <span key={index} className={index <= randomPartIndex ? "active" : ""} />
+              ))}
+            </div>
+          </article>
+
+          <section className="random-recall-card">
+            <div className="random-recall-head">
+              <span>第 {randomPartIndex + 1} 句 / {randomParts.length || 1}</span>
+              <span>主动回忆</span>
+            </div>
+            <p className="random-recall-text">
+              {randomParts[randomPartIndex] ?? selected.definition}
+            </p>
+            <p className="random-recall-tip">
+              先在心里复述这一句，再决定是否打开下一句。
+            </p>
+          </section>
+
+          <div className="random-actions">
+            <button
+              className="secondary-button"
+              onClick={() => openTraining(selected, true)}
+            >
+              助记
+            </button>
+            <button
+              className="primary-button"
+              onClick={() => {
+                if (randomPartIndex < randomParts.length - 1) {
+                  setRandomPartIndex((current) => current + 1);
+                } else {
+                  startRandomRecitation(selected.id);
+                }
+              }}
+            >
+              {randomPartIndex < randomParts.length - 1 ? "下一句" : "下一个随机名词"}
+            </button>
+          </div>
+        </section>
+      )}
+
       {view === "library" && (
         <section className="page">
           <div className="page-heading">
@@ -846,6 +945,18 @@ export function HistoryTrainer() {
             <h2>名词库</h2>
             <p>只收录目录中的考点，可按篇章或关键词快速定位。</p>
           </div>
+          <button
+            type="button"
+            className="random-launch"
+            onClick={() => startRandomRecitation()}
+          >
+            <span className="random-launch-icon">↗</span>
+            <span>
+              <strong>随机背诵</strong>
+              <small>从 947 个名词中随机抽取一条</small>
+            </span>
+            <b>开始</b>
+          </button>
           <label className="search-box">
             <span>⌕</span>
             <input
